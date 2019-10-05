@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+cd /var/lib/tomcat8/webapps
+mkdir NewApp1 -p
+cd NewApp1
+cp /tmp/AWSFirstDeploy.war .
+service tomcat8 start

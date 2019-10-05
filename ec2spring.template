@@ -1,0 +1,98 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Parameters" : {
+    "SourceCodeBucket" : {
+      "Type" : "String",
+      "Default" : "S3"
+    }
+  },
+  "Resources": {
+    "RootRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement": [ {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [ "ec2.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole" ]
+          } ]
+        },
+        "Path": "/",
+        "Policies": [ {
+          "PolicyName": "root",
+          "PolicyDocument": {
+            "Version" : "2012-10-17",
+            "Statement": [ {
+              "Effect": "Allow",
+              "Action": [
+                "s3:Get*",
+                "s3:List*"
+              ],
+              "Resource": {"Fn::Join" : [ "", [ "arn:aws:s3:::", {"Ref":"SourceCodeBucket"},"/*"] ] }
+            } ]
+          }
+        } ]
+      }
+    },
+    "RootInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ {
+          "Ref": "RootRole"
+        } ]
+      }
+    },
+    "Ec2Instance":{
+      "Type":"AWS::EC2::Instance",
+      "Properties":{
+        "ImageId":"ami-0922553b7b0369273",
+        "InstanceType":"t2.nano",
+        "KeyName":"rnd",
+        "IamInstanceProfile": {"Ref":"RootInstanceProfile"},
+        "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+								"#!/bin/bash -xe\n",
+								"cd /home/ec2-user/\n",
+								"yum install -y aws-cfn-bootstrap\n",
+								"yum install -y aws-cli\n",
+								"wget --no-check-certificate --no-cookies --header 'Cookie: oraclelicense=accept-securebackup-cookie' http://download.oracle.com/otn-pub/java/jdk/8u141-b15/336fa29ff2bb4ef291e347e091f7f4a7/jdk-8u141-linux-x64.rpm\n",
+								"sudo yum install -y jdk-8u141-linux-x64.rpm\n",
+								"JAVA_HOME=$(dirname $( readlink -f $(which java) ))\n",
+								"JAVA_HOME=$(realpath $JAVA_HOME/../)\n",
+								"export JAVA_HOME\n",
+								"wget http://mirrors.estointernet.in/apache/maven/maven-3/3.6.0/binaries/apache-maven-3.6.0-bin.tar.gz\n",
+								"sudo tar -xvzf apache-maven-3.6.0-bin.tar.gz\n",
+								"export M2_HOME=/home/ec2-user/apache-maven-3.6.0\n",
+								"sudo update-alternatives --install '/usr/bin/mvn' 'mvn' '/home/ec2-user/apache-maven-3.6.0/bin/mvn' 0\n",
+								"sudo update-alternatives --set mvn /home/ec2-user/apache-maven-3.6.0/bin/mvn\n",
+								"aws configure set aws_access_key_id AKIAJF5RLF2WW5PTOHYQ\n",
+								"aws configure set aws_secret_access_key yTCbZ+g3pz26tbpx+HOMzOlAWvK1yaNWlY7N+obk\n",
+								"aws configure set default.region us-east-1\n",
+								"aws s3 cp s3://r-serverless/spring-boot-maven-example-helloworld.zip /home/ec2-user/\n",
+								"unzip spring-boot-maven-example-helloworld.zip\n",
+								"mvn clean install -Dskiptest\n",
+								
+								"mvn tomcat7:run\n",
+								"exec bash"
+
+                            ]
+                        ]
+                    }
+                }
+      }
+    }
+  },
+  "Outputs" : {
+    "PublicIp" : {
+      "Value" : { "Fn::GetAtt" : [ "Ec2Instance", "PublicIp" ]},
+      "Description" : "Server's PublicIp Address"
+    }
+}
+}
